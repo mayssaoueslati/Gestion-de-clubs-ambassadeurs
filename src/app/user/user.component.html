@@ -1,0 +1,37 @@
+
+<div class="container">
+  <h2>User Management</h2>
+
+  <div class="form">
+    <h3>Add New User</h3>
+    <input type="text" [(ngModel)]="newUser.name" placeholder="Name" />
+    <input type="email" [(ngModel)]="newUser.email" placeholder="Email" />
+    <button (click)="addUser()">Add User</button>
+  </div>
+
+  <div class="form" *ngIf="editUser">
+    <h3>Edit User</h3>
+    <input type="text" [(ngModel)]="editUser.name" placeholder="Name" />
+    <input type="email" [(ngModel)]="editUser.email" placeholder="Email" />
+    <button (click)="updateUser()">Update</button>
+    <button class="cancel" (click)="editUser = null">Cancel</button>
+  </div>
+
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Actions</th>
+    </tr>
+    <tr *ngFor="let user of users">
+      <td>{{ user.id }}</td>
+      <td>{{ user.name }}</td>
+      <td>{{ user.email }}</td>
+      <td>
+        <button class="edit" (click)="setEditUser(user)">Edit</button>
+        <button class="delete" (click)="deleteUser(user.id)">Delete</button>
+      </td>
+    </tr>
+  </table>
+</div>

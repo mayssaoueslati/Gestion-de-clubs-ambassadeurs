@@ -1,0 +1,98 @@
+/* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 20px;
+  }
+  
+  .container {
+    width: 90%;
+    max-width: 800px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    margin: auto;
+  }
+  
+  h2, h3 {
+    text-align: center;
+    color: #333;
+  }
+  
+  /* Form Styles */
+  .form {
+    background: #f9f9f9;
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 6px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  input {
+    width: calc(100% - 20px);
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    display: block;
+  }
+  
+  button {
+    background: #4CAF50;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: inline-block;
+    margin-right: 5px;
+  }
+  
+  button:hover {
+    background: #45a049;
+  }
+  
+  button.cancel {
+    background: #d9534f;
+  }
+  
+  button.cancel:hover {
+    background: #c9302c;
+  }
+  
+  /* Table Styles */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+  
+  th, td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: left;
+  }
+  
+  th {
+    background: #f1f1f1;
+  }
+  
+  /* Button Styles */
+  button.edit {
+    background: #f0ad4e;
+  }
+  
+  button.edit:hover {
+    background: #ec971f;
+  }
+  
+  button.delete {
+    background: #d9534f;
+  }
+  
+  button.delete:hover {
+    background: #c9302c;
+  }
+  

@@ -1,5 +1,12 @@
 package model;
 
+import enums.Role;
+
+import java.util.Collection;
+
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -9,7 +16,8 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User implements UserDetails{
+	
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -20,8 +28,22 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
     
-    // Remove password and role from User entity as they will be in UserAuth
+    @Enumerated(EnumType.STRING)
+    private Role role = Role.VISITOR;
     
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    private UserAuth userAuth;
+    @Column(nullable = false)
+    private String password;
+
+    
+	@Override
+	public Collection<? extends GrantedAuthority> getAuthorities() {
+		return null;
+	}
+
+	@Override
+	public String getUsername() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+    
 }

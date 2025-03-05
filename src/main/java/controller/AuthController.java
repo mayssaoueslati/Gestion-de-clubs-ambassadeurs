@@ -41,7 +41,10 @@ public class AuthController {
     
     @PostMapping("/login")
 public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-    return userRepo.findByEmail(request.username)
+     	System.err.println(request.password);
+    	System.err.println(request.username);
+    	System.err.println(userRepo.findByName(request.username).isPresent());
+    return userRepo.findByName(request.username)
         .map((User userAuth) -> {
             if (passwordEncoder.matches(request.password, userAuth.getPassword())) {
                 String role = (userAuth.getRole() != null) 
@@ -61,6 +64,10 @@ public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         })
         .orElse(ResponseEntity.status(401).body("User not found"));
 }
+    @GetMapping("/logout")
+    public String logout() {
+        return "redirect:/login"; 
+    }
     
 
     

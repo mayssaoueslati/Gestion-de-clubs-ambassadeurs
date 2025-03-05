@@ -25,8 +25,30 @@ public class User implements UserDetails{
     @Column(nullable = false)
     private String name;
     
+    @Column(nullable = false)
+    private String prenom;
+    
     @Column(nullable = false, unique = true)
     private String email;
+    
+    @Column(nullable = false)
+    private String adresse;
+    
+    @Column(unique = true, nullable = false, length = 8)
+    private String cin;
+    
+    @Column(nullable = false)
+    private String mission;
+    
+    @Column(nullable = false)
+    private String club;
+    
+    @Column(nullable = false)
+    private String poste;
+    
+    @Column(nullable = false, length = 15)
+    private String tel;
+    
     
     @Enumerated(EnumType.STRING)
     private Role role = Role.VISITOR;
@@ -42,8 +64,8 @@ public class User implements UserDetails{
 
 	@Override
 	public String getUsername() {
-		// TODO Auto-generated method stub
-		return null;
+	    return this.email; // or whatever field you want to use as username
 	}
+	
     
 }

@@ -41,12 +41,12 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+    	CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*")); // Use specific origins in production
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
-
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
@@ -58,12 +58,21 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() // Support CORS preflight requests
-                .requestMatchers("/api/auth/**").permitAll() // Public endpoints
-                .requestMatchers("/api/users/**").authenticated() // Protected endpoints
-                .requestMatchers("/api/usersCrud"/**").authenticated()
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll() 
+                .requestMatchers("/api/auth/**").permitAll() 
+                .requestMatchers("/api/userCrud/**").permitAll() 
+                .requestMatchers("/api/users/**").authenticated() 
+                .anyRequest().authenticated() 
+
+                
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .logout(logout -> logout
+                    .logoutUrl("/api/auth/logout")  
+                    .logoutSuccessUrl("/login?logout=true") // redirection
+                    .permitAll() 
+                )
+
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

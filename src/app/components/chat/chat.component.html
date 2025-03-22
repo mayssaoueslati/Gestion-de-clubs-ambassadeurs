@@ -1,0 +1,185 @@
+<div class="chat-app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="user-info">
+      <div class="avatar" [style.backgroundColor]="getAvatarColor(username)">
+        {{ username.charAt(0).toUpperCase() }}
+      </div>
+      <div class="username">{{ username }}</div>
+      <button class="logout-button" (click)="logout()">Logout</button>
+    </div>
+
+    <div class="chat-list">
+      <div class="chat-list-header">
+        <h3>Chats</h3>
+        <button class="add-group-btn" (click)="openGroupModal()">
+          <i class="fas fa-plus"></i>
+        </button>
+      </div>
+
+      <div class="chat-items">
+        <div
+          class="chat-item"
+          [class.active]="currentChat === 'public'"
+          (click)="switchChat('public')"
+        >
+          <div class="chat-avatar">
+            <i class="fas fa-globe"></i>
+          </div>
+          <div class="chat-name">Public Chat</div>
+        </div>
+
+        <div
+          *ngFor="let group of userGroups"
+          class="chat-item"
+          [class.active]="currentChat === group.id"
+          (click)="switchChat(group.id)"
+        >
+          <div
+            class="chat-avatar group-avatar"
+            [style.backgroundColor]="getAvatarColor(group.name)"
+          >
+            {{ group.name.charAt(0).toUpperCase() }}
+          </div>
+          <div class="chat-name">{{ group.name }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Chat Area -->
+  <div class="chat-container">
+    <div class="chat-header">
+      <h2>{{ getChatName(currentChat) }}</h2>
+      <div class="connection-status" [class.connected]="isConnected">
+        {{ isConnected ? "Connected" : "Disconnected" }}
+      </div>
+    </div>
+
+    <div class="chat-messages" #messageList>
+      <div
+        *ngFor="let message of messages"
+        class="message"
+        [ngClass]="{
+          'own-message': message.sender === username,
+          'system-message': message.type === 'JOIN' || message.type === 'LEAVE'
+        }"
+      >
+        <div
+          *ngIf="message.type !== 'JOIN' && message.type !== 'LEAVE'"
+          class="avatar"
+          [style.backgroundColor]="getAvatarColor(message.sender)"
+        >
+          {{ message.sender.charAt(0).toUpperCase() }}
+        </div>
+        <div class="message-content">
+          <div class="message-info">
+            <span class="sender">{{ message.sender }}</span>
+            <span class="timestamp">{{
+              message.timestamp | date : "shortTime"
+            }}</span>
+          </div>
+          <div class="message-text">{{ message.content }}</div>
+        </div>
+      </div>
+
+      <div *ngIf="messages.length === 0" class="empty-chat">
+        <div class="empty-icon">
+          <i class="fas fa-comments"></i>
+        </div>
+        <p>No messages yet. Start a conversation!</p>
+      </div>
+    </div>
+
+    <form class="chat-form" (ngSubmit)="sendMessage()">
+      <div class="input-group">
+        <input
+          type="text"
+          [(ngModel)]="messageContent"
+          name="messageContent"
+          placeholder="Type a message..."
+          autocomplete="off"
+          [disabled]="!isConnected"
+        />
+        <button
+          type="submit"
+          [disabled]="!isConnected || !messageContent.trim()"
+        >
+          <i class="fas fa-paper-plane"></i>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Group Chat Modal -->
+  <div class="modal" *ngIf="showGroupModal">
+    <div class="modal-backdrop" (click)="closeGroupModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Create Group Chat</h3>
+        <button class="close-btn" (click)="closeGroupModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="groupName">Group Name</label>
+          <input
+            type="text"
+            id="groupName"
+            [(ngModel)]="groupName"
+            name="groupName"
+            placeholder="Enter group name"
+          />
+        </div>
+
+        <div class="member-selection">
+          <h4>Add Members</h4>
+
+          <div class="search-container">
+            <input
+              type="text"
+              [(ngModel)]="searchTerm"
+              (input)="filterUsers()"
+              placeholder="Search users..."
+            />
+          </div>
+
+          <div class="selected-members" *ngIf="selectedUsers.length > 0">
+            <h4>Selected Members</h4>
+            <div class="member-chips">
+              <div class="member-chip" *ngFor="let user of selectedUsers">
+                {{ user.username }}
+                <button (click)="removeUser(user)">×</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="user-list">
+            <div
+              *ngFor="let user of filteredUsers"
+              class="user-item"
+              (click)="selectUser(user)"
+            >
+              <div
+                class="user-avatar"
+                [style.backgroundColor]="getAvatarColor(user.username)"
+              >
+                {{ user.username.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-info">
+                {{ user.username }}
+              </div>
+            </div>
+
+            <div *ngIf="filteredUsers.length === 0" class="no-results">
+              No users found
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeGroupModal()">Cancel</button>
+        <button class="create-btn" (click)="createGroup()">Create Group</button>
+      </div>
+    </div>
+  </div>
+</div>

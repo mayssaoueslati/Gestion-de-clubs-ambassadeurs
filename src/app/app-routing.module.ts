@@ -1,7 +1,15 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+import { LoginComponent } from './components/login/login.component';
+import { ChatComponent } from './components/chat/chat.component';
+import { AuthGuard } from './AuthGuard';
 
-const routes: Routes = [];
+export const routes: Routes = [
+  { path: 'login', component: LoginComponent },
+  { path: 'chat', component: ChatComponent, canActivate: [AuthGuard] },
+  { path: '', redirectTo: '/login', pathMatch: 'full' },
+  { path: '**', redirectTo: '/login' }
+];
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],

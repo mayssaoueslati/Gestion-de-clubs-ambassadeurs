@@ -51,8 +51,13 @@
   <div class="chat-container">
     <div class="chat-header">
       <h2>{{ getChatName(currentChat) }}</h2>
-      <div class="connection-status" [class.connected]="isConnected">
-        {{ isConnected ? "Connected" : "Disconnected" }}
+      <div class="header-actions">
+        <button *ngIf="currentChat !== 'public'" class="view-members-btn" (click)="openGroupMembersModal()">
+          <i class="fas fa-users"></i> View Members
+        </button>
+        <div class="connection-status" [class.connected]="isConnected">
+          {{ isConnected ? "Connected" : "Disconnected" }}
+        </div>
       </div>
     </div>
 
@@ -182,4 +187,72 @@
       </div>
     </div>
   </div>
-</div>
+
+  <div class="modal" *ngIf="showGroupMembersModal">
+    <div class="modal-backdrop" (click)="closeGroupMembersModal()"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Group Members - {{ getChatName(currentChat) }}</h3>
+        <button class="close-btn" (click)="closeGroupMembersModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="member-list">
+          <div *ngFor="let member of currentGroupMembers" class="member-item">
+            <div class="member-avatar" [style.backgroundColor]="getAvatarColor(member.username)">
+              {{ member.username.charAt(0).toUpperCase() }}
+            </div>
+            <div class="member-info">
+              {{ member.username }}
+              <span *ngIf="member.id === authService.getCurrentUserId()" class="user-badge">You</span>
+            </div>
+            <button 
+              *ngIf="member.id !== authService.getCurrentUserId()" 
+              class="remove-btn"
+              (click)="removeMemberFromGroup(member.id)"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+
+        <div class="add-members-section">
+          <h4>Add More Members</h4>
+          <div class="search-container">
+            <input
+              type="text"
+              [(ngModel)]="searchTerm"
+              (input)="filterUsers()"
+              placeholder="Search users..."
+            />
+          </div>
+
+          <div class="user-list">
+            <div
+              *ngFor="let user of filteredUsers"
+              class="user-item"
+              (click)="addMemberToGroup(user.id)"
+            >
+              <div
+                class="user-avatar"
+                [style.backgroundColor]="getAvatarColor(user.username)"
+              >
+                {{ user.username.charAt(0).toUpperCase() }}
+              </div>
+              <div class="user-info">
+                {{ user.username }}
+              </div>
+              <button class="add-btn">
+                <i class="fas fa-plus"></i>
+              </button>
+            </div>
+
+            <div *ngIf="filteredUsers.length === 0" class="no-results">
+              No users found
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="close-btn" (click)="closeGroupMembersModal()">Close</button>
+      </div>
+    </div>

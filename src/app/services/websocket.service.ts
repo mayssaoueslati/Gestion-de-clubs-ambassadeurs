@@ -4,6 +4,7 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import SockJS from 'sockjs-client';
 import * as Stomp from 'stompjs';
 import { environment } from '../../environments/environment';
+import { HttpClient } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
@@ -16,11 +17,12 @@ export class WebSocketService {
   public connection$: Observable<boolean> = this.connectionSubject.asObservable();
   
   private socketEndpoint = `${environment.apiUrl}/ws`;
+  private apiUrl = environment.apiUrl;
   private reconnecting = false;
   private currentUsername: string | null = null;
-  private currentSubscriptions: Map<string, any> = new Map(); // Keep track of active subscriptions
+  private currentSubscriptions: Map<string, any> = new Map(); 
  
-  constructor() { }
+  constructor(private http: HttpClient) { }
     
   connect(username: string): Promise<void> {
     this.currentUsername = username;
@@ -31,17 +33,14 @@ export class WebSocketService {
     }
     return new Promise((resolve, reject) => {
       try {
-        // Create a new SockJS instance
         console.log('Connecting to WebSocket at:', this.socketEndpoint);
         const socket = new SockJS(this.socketEndpoint);
         this.stompClient = Stomp.over(socket);
                 
-        // Enable debug logs temporarily to diagnose issues
         this.stompClient.debug = (str: string) => {
           console.log('STOMP: ' + str);
         };
                 
-        // Add JWT token to initial connection handshake
         const token = localStorage.getItem('token');
         console.log('Using token:', token ? 'Bearer ' + token.substring(0, 10) + '...' : 'No token');
         const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -53,15 +52,12 @@ export class WebSocketService {
             this.connectionSubject.next(true);
             this.reconnecting = false;
                         
-            // Subscribe to the Public Topic by default
             this.subscribeToPublicChat();
                 
-            // Tell your username to the server
             this.sendMessage(username, '', 'JOIN', 'public');
             resolve();
           },
           (error: any) => {
-            // Enhanced error logging
             console.error('WebSocket connection error:', error);
             console.error('WebSocket error details:', {
               headers: error.headers,
@@ -70,7 +66,6 @@ export class WebSocketService {
             });
             this.connectionSubject.next(false);
             
-            // Attempt to reconnect if not already reconnecting
             if (!this.reconnecting && this.currentUsername) {
               this.reconnecting = true;
               this.attemptReconnect(this.currentUsername);
@@ -79,12 +74,11 @@ export class WebSocketService {
             reject(error);
           }
         );
-        // Add event handler for SockJS close events
+
         socket.onclose = () => {
           console.log('SockJS connection closed');
           this.connectionSubject.next(false);
           
-          // Attempt to reconnect if not already reconnecting
           if (!this.reconnecting && this.currentUsername) {
             this.reconnecting = true;
             this.attemptReconnect(this.currentUsername);
@@ -95,7 +89,6 @@ export class WebSocketService {
         console.error('Error establishing WebSocket connection:', error);
         this.connectionSubject.next(false);
         
-        // Attempt to reconnect if not already reconnecting
         if (!this.reconnecting && this.currentUsername) {
           this.reconnecting = true;
           this.attemptReconnect(this.currentUsername);
@@ -209,6 +202,8 @@ export class WebSocketService {
       // Store the subscription
       this.currentSubscriptions.set('/topic/public', subscription);
       console.log('Subscribed to public chat');
+      
+      this.loadPublicChatHistory();
     } else {
       console.warn('Cannot subscribe to public chat, client not connected');
       this.ensureConnection().then(connected => {
@@ -219,26 +214,21 @@ export class WebSocketService {
     }
   }
   
-  // Method to subscribe to group chat
   subscribeToGroupChat(groupId: string): void {
     if (this.stompClient && this.stompClient.connected) {
       const topic = `/topic/group/${groupId}`;
       
-      // Unsubscribe if already subscribed
       if (this.currentSubscriptions.has(topic)) {
         this.currentSubscriptions.get(topic).unsubscribe();
       }
       
-      // Subscribe to the group topic
       const subscription = this.stompClient.subscribe(topic, (payload: any) => {
         this.onMessageReceived(payload);
       });
       
-      // Store the subscription
       this.currentSubscriptions.set(topic, subscription);
       console.log(`Subscribed to group chat: ${groupId}`);
       
-      // Load previous messages for this group
       this.loadGroupHistory(groupId);
     } else {
       console.warn('Cannot subscribe to group chat, client not connected');
@@ -250,7 +240,6 @@ export class WebSocketService {
     }
   }
   
-  // Method to unsubscribe from chat
   unsubscribeFromChat(chatId: string): void {
     let topic;
     
@@ -266,9 +255,64 @@ export class WebSocketService {
       console.log(`Unsubscribed from chat: ${chatId}`);
     }
   }
-  
-  // Method to load message history for a group
+  public getPublicChatHistory(username: string) {
+    if (this.stompClient && this.stompClient.connected) {
+      if (this.currentSubscriptions.has('/user/queue/history')) {
+        this.currentSubscriptions.get('/user/queue/history').unsubscribe();
+        this.currentSubscriptions.delete('/user/queue/history');
+      }
+      
+      const subscription = this.stompClient.subscribe('/user/queue/history', (message: any) => {
+        const historyMessages = JSON.parse(message.body);
+        console.log('Received public chat history:', historyMessages.length, 'messages');
+        this.messageSubject.next(historyMessages);
+      });
+      
+      this.currentSubscriptions.set('/user/queue/history', subscription);
+      
+      const requestMessage = {
+        sender: username,
+        type: 'HISTORY',
+        chatId: 'public',
+        content: '',
+        timestamp: new Date()
+      };
+      
+      // Send the history request
+      this.stompClient.send('/app/chat.addUser', {}, JSON.stringify(requestMessage));
+      
+      // Also load via REST API for redundancy
+      this.loadPublicChatHistory();
+    } else {
+      // If not connected, just use the REST API
+      this.loadPublicChatHistory();
+    }
+  }
+  public getGroupChatHistory(username: string, groupId: string) {
+    if (this.stompClient && this.stompClient.connected) {
+      // Create a message requesting history
+      const requestMessage = {
+        sender: username,
+        type: 'HISTORY',
+        chatId: groupId,
+        content: '',
+        timestamp: new Date()
+      };
+      
+      // Subscribe to the specific group history queue
+      this.stompClient.subscribe(`/user/queue/group-history/${groupId}`, (message: any) => {
+        const historyMessages = JSON.parse(message.body);
+        // Update the shared messages subject with history
+        this.messageSubject.next(historyMessages);
+      });
+      
+      // Send the group history request
+      this.stompClient.send(`/app/chat.history/${groupId}`, {}, JSON.stringify(requestMessage));
+    }
+  }
+
   private loadGroupHistory(groupId: string): void {
+    // First attempt via WebSocket
     if (this.stompClient && this.stompClient.connected) {
       this.stompClient.send(
         `/app/chat.history/${groupId}`,
@@ -276,7 +320,33 @@ export class WebSocketService {
         JSON.stringify({ sender: this.currentUsername })
       );
     }
+    
+    // Also load via REST API for redundancy
+    this.http.get<ChatMessage[]>(`${this.apiUrl}/messages/group/${groupId}`).subscribe({
+      next: (messages) => {
+        if (messages && messages.length > 0) {
+          this.messageSubject.next(messages);
+        }
+      },
+      error: (error) => {
+        console.error('Error loading group chat history:', error);
+      }
+    });
   }
+  
+public loadPublicChatHistory(): void {
+  this.http.get<ChatMessage[]>(`${this.apiUrl}/messages/public`).subscribe({
+    next: (messages) => {
+      if (messages && messages.length > 0) {
+        console.log('Loaded', messages.length, 'messages from REST API');
+        this.messageSubject.next(messages);
+      }
+    },
+    error: (error) => {
+      console.error('Error loading public chat history:', error);
+    }
+  });
+}
   
   // Method to check connection status and reconnect if needed
   ensureConnection(): Promise<boolean> {

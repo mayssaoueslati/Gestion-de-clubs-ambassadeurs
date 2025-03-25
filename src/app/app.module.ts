@@ -6,7 +6,6 @@ import { CommonModule } from '@angular/common';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-// Import the standalone components
 import { LoginComponent } from './components/login/login.component';
 import { ChatComponent } from './components/chat/chat.component';
 
@@ -17,7 +16,6 @@ import { AuthenticationService } from './services/authentication.service';
 @NgModule({
   declarations: [
     AppComponent,
-    // Remove standalone components from declarations
   ],
   imports: [
     BrowserModule,
@@ -25,7 +23,6 @@ import { AuthenticationService } from './services/authentication.service';
     FormsModule,
     CommonModule,
     AppRoutingModule,
-    // Import the standalone components
     LoginComponent,
     ChatComponent
   ],

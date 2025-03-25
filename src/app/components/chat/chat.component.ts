@@ -23,19 +23,22 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   @ViewChild('messageList') messageList!: ElementRef;
   username: string = '';
   
-  // Group chat variables
   showGroupModal: boolean = false;
   groupName: string = '';
   allUsers: any[] = [];
   filteredUsers: any[] = [];
   selectedUsers: any[] = [];
   searchTerm: string = '';
-  currentChat: string = 'public'; // 'public' or group ID
+  currentChat: string = 'public'; 
   userGroups: any[] = [];
+  
+  showGroupMembersModal: boolean = false;
+  currentGroupMembers: any[] = [];
+  chatHistory: Map<string, ChatMessage[]> = new Map<string, ChatMessage[]>();
   
   constructor(
     private webSocketService: WebSocketService,
-    private authService: AuthenticationService,
+    public authService: AuthenticationService,
     private userService: UserService,
     private datePipe: DatePipe
   ) {}
@@ -43,26 +46,29 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   ngOnInit() {
     this.username = localStorage.getItem('chat-username') || 'user';
     
-    // Subscribe to WebSocket messages
     this.subscription.add(
       this.webSocketService.messages$.subscribe(messages => {
         this.messages = messages;
+        
+        if (this.currentChat) {
+          this.chatHistory.set(this.currentChat, [...messages]);
+        }
       })
     );
     
-    // Subscribe to connection status
     this.subscription.add(
       this.webSocketService.connection$.subscribe(connected => {
         this.isConnected = connected;
+        
+        // When connection is established, load messages for current chat
+        if (connected && this.currentChat) {
+          this.switchChat(this.currentChat);
+        }
       })
     );
     
-    // Get user groups
     this.loadUserGroups();
-    
-    // Load all users
     this.loadAllUsers();
-    
     this.startChat();
   }
 
@@ -71,9 +77,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   ngOnDestroy() {
-    // Properly clean up subscriptions
     this.subscription.unsubscribe();
-    // Disconnect WebSocket
     this.webSocketService.disconnect();
   }
 
@@ -92,10 +96,8 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   logout() {
-    // Disconnect from WebSocket
     this.webSocketService.disconnect();
     
-    // Logout from authentication service
     this.authService.clientLogout();
     this.authService.logout().subscribe({
       next: () => console.log('Logged out successfully'),
@@ -104,7 +106,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   getAvatarColor(sender: string): string {
-    // Generate consistent color based on the username
     let hash = 0;
     for (let i = 0; i < sender.length; i++) {
       hash = sender.charCodeAt(i) + ((hash << 5) - hash);
@@ -115,7 +116,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   sendMessage() {
     if (this.messageContent.trim() && this.isConnected) {
-      // Send through WebSocket service
       this.webSocketService.sendMessage(
         this.username,
         this.messageContent.trim(),
@@ -123,7 +123,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.currentChat
       );
       
-      // Clear input field
       this.messageContent = '';
     }
   }
@@ -137,7 +136,6 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
   
-  // Group chat functions
   openGroupModal() {
     this.showGroupModal = true;
     this.groupName = '';
@@ -153,10 +151,16 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   loadAllUsers() {
     this.userService.getAllUsers().subscribe({
       next: (users) => {
+        console.log('All users:', users); 
         this.allUsers = users.filter(user => user.username !== this.username);
         this.filteredUsers = [...this.allUsers];
+       // this.selectedUsers=this.filteredUsers;
+        console.log('Filtered users:', this.filteredUsers); // Add this line
       },
-      error: (error) => console.error('Error loading users:', error)
+      error: (error) => {
+        console.error('Error loading users:', error);
+        console.error('Full error:', error);
+      }
     });
   }
   
@@ -170,18 +174,21 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
   
   filterUsers() {
-    if (!this.searchTerm) {
+    if (!this.searchTerm || this.searchTerm.length < 2) {
       this.filteredUsers = this.allUsers.filter(user => 
         !this.selectedUsers.some(selected => selected.id === user.id)
       );
       return;
     }
     
-    const searchLower = this.searchTerm.toLowerCase();
-    this.filteredUsers = this.allUsers.filter(user => 
-      user.username.toLowerCase().includes(searchLower) && 
-      !this.selectedUsers.some(selected => selected.id === user.id)
-    );
+    this.userService.searchUsers(this.searchTerm).subscribe({
+      next: (users) => {
+        this.filteredUsers = users.filter(user => 
+          !this.selectedUsers.some(selected => selected.id === user.id)
+        );
+      },
+      error: (error) => console.error('Error searching users:', error)
+    });
   }
   
   selectUser(user: any) {
@@ -201,7 +208,7 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
     
     const memberIds = this.selectedUsers.map(user => user.id);
-    memberIds.push(this.authService.getCurrentUserId()); // Add current user
+    memberIds.push(this.authService.getCurrentUserId());
     
     this.userService.createChatGroup(this.groupName, memberIds).subscribe({
       next: (group) => {
@@ -213,26 +220,79 @@ export class ChatComponent implements OnInit, OnDestroy, AfterViewChecked {
     });
   }
   
-  switchChat(chatId: string) {
-    // Unsubscribe from current chat
-    if (this.currentChat !== 'public') {
-      this.webSocketService.unsubscribeFromChat(this.currentChat);
-    }
-    
-    // Subscribe to new chat
-    this.currentChat = chatId;
-    this.webSocketService.clearMessages();
-    
-    if (chatId === 'public') {
-      this.webSocketService.subscribeToPublicChat();
-    } else {
-      this.webSocketService.subscribeToGroupChat(chatId);
-    }
-  }
+  
   
   getChatName(chatId: string): string {
     if (chatId === 'public') return 'Public Chat';
     const group = this.userGroups.find(g => g.id === chatId);
     return group ? group.name : 'Unknown Group';
+  }
+  
+  loadGroupMembers(groupId: string) {
+    if (groupId === 'public') return;
+    
+    this.userService.getGroupDetails(groupId).subscribe({
+      next: (group) => {
+        this.currentGroupMembers = group.members || [];
+      },
+      error: (error) => console.error('Error loading group members:', error)
+    });
+  }
+  
+  openGroupMembersModal() {
+    if (this.currentChat !== 'public') {
+      this.showGroupMembersModal = true;
+    }
+  }
+  
+  closeGroupMembersModal() {
+    this.showGroupMembersModal = false;
+  }
+  
+  addMemberToGroup(userId: string) {
+    this.userService.addUserToGroup(this.currentChat, userId).subscribe({
+      next: () => {
+        this.loadGroupMembers(this.currentChat);
+      },
+      error: (error) => console.error('Error adding member:', error)
+    });
+  }
+  switchChat(chatId: string) {
+    if (this.currentChat !== 'public') {
+      this.webSocketService.unsubscribeFromChat(this.currentChat);
+    }
+    
+    this.currentChat = chatId;
+    
+    const existingHistory = this.chatHistory.get(chatId);
+    if (existingHistory && existingHistory.length > 0) {
+      this.webSocketService.clearMessages();
+      this.messages = [...existingHistory];
+    } else {
+      this.webSocketService.clearMessages();
+      
+      if (chatId === 'public') {
+        this.webSocketService.subscribeToPublicChat();
+        this.webSocketService.getPublicChatHistory(this.username);
+      } else {
+        this.webSocketService.subscribeToGroupChat(chatId);
+        this.webSocketService.getGroupChatHistory(this.username, chatId);
+        this.loadGroupMembers(chatId);
+      }
+    }
+  }
+  
+  removeMemberFromGroup(userId: string) {
+    if (userId === this.authService.getCurrentUserId()) {
+      alert('You cannot remove yourself from the group');
+      return;
+    }
+    
+    this.userService.removeUserFromGroup(this.currentChat, userId).subscribe({
+      next: () => {
+        this.loadGroupMembers(this.currentChat);
+      },
+      error: (error) => console.error('Error removing member:', error)
+    });
   }
 }

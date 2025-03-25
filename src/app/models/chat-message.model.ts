@@ -10,6 +10,6 @@ export class ChatMessage {
     this.content = content;
     this.type = type;
     this.chatId = chatId;
-    this.timestamp = timestamp || new Date(); // Default to current time if not provided
+    this.timestamp = timestamp || new Date(); 
   }
 }

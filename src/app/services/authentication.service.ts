@@ -12,12 +12,10 @@ export class AuthenticationService {
 
   constructor(private http: HttpClient) {}
 
-  // Add the getToken method
   getToken(): string | null {
     return localStorage.getItem('token');
   }
 
-  // Add the login method
   login(username: string, password: string): Observable<any> {
     return this.http.post<any>(`${this.apiUrl}/api/auth/login`, { username, password })
       .pipe(
@@ -26,7 +24,6 @@ export class AuthenticationService {
             localStorage.setItem('token', response.token);
             localStorage.setItem('chat-username', username);
             
-            // Store user data if available
             if (response.user) {
               localStorage.setItem('user-data', JSON.stringify(response.user));
             }
